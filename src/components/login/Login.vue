@@ -26,16 +26,19 @@
 import { ref } from "vue";
 import {validationPhoneNumber} from "@/utils/validation.js";
 import {validationPassword} from "@/utils/validation.js";
+import axios from "axios";
+import {useRouter} from "vue-router";
+
+
 export default {
   setup() {
-    const regPhone = /^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/;
-    const regPw = /^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{8,15}$/;
-    const loginId = ref('');
-    const loginPw = ref('');
-    const phoneInput = ref(null);
-    const pwInput = ref(null);
+    const loginId = ref('')
+    const loginPw = ref('')
+    const phoneInput = ref(null)
+    const pwInput = ref(null)
+    const router = useRouter()
 
-    const loginButton = () => {
+    const loginButton = async() => {
       if (loginId.value === '') {
         alert("핸드폰번호 입력해주세요.");
         phoneInput.value?.focus();
@@ -58,6 +61,22 @@ export default {
         alert("비밀번호는 대소문자 특수기호 포함 8 ~ 15자리 이내입니다.");
         pwInput.value?.focus();
         return false;
+      }
+
+      try{
+
+        const data = {
+          phoneInput : loginId.value,
+          loginPw : loginPw.value
+        }
+
+        const response = await axios.post("http://localhost:8081/sign/login",data)
+
+        if(response.data["successAt"] === '200'){
+          await router.push('/home')
+        }
+      }catch(e){
+        console.log("로그인 중 에러 발생 : ",e.message)
       }
     };
 
