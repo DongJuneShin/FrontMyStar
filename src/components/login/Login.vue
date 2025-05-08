@@ -72,8 +72,13 @@ export default {
 
         const response = await axios.post("http://localhost:8081/sign/login",data)
 
-        if(response.data["successAt"] === '200'){
+        if(response.data["successAt"] === "200"){
+          const token = response.data["token"];
+          localStorage.setItem("token", token); // ✅ 토큰 저장
           await router.push('/home')
+        }else{
+          alert(response.data["message"])
+          return false
         }
       }catch(e){
         console.log("로그인 중 에러 발생 : ",e.message)
