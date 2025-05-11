@@ -186,10 +186,10 @@ export default {
         const response = await axios.post('http://localhost:8081/sign/selectCertifiNumber',data)
         startTimer()
 
-        if(response.data["successAt"] === '200'){
-          alert("고객님의 핸드폰으로 인증번호가 발송되었습니다.")
+        if(response.data["successAt"] !== '200'){
+          alert(response.data["message"])
+          return false
         }
-
 
       }catch (e){
         console.log('에러발생 : ',e.message)
@@ -206,13 +206,13 @@ export default {
         }else{
           try{
             const data = {
+              phoneNumber : phoneNumber.value,
               certifiNumber : certifiNumber.value
             }
 
             const response = await axios.post('http://localhost:8081/sign/certifiNumber' , data)
 
             if(response.data['successAt'] === '200'){
-              alert("인증완료 되었습니다.")
               certificateClick.value = false
               certifiNumber.value = ''
               certifiValue.value = '인증완료'
@@ -223,7 +223,7 @@ export default {
 
               certificateComplate.value = true
             }else{
-              alert("인증번호를 다시 확인해주시기 바랍니다.")
+              alert(response.data['message']);
               return false
             }
           }catch(e){

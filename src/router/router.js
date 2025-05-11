@@ -5,6 +5,7 @@ import mainLayout from "@/layouts/MainLayout.vue";
 import Home from "@/views/Home.vue";
 import Profile from "@/views/Profile.vue";
 import NotFound from "@/components/etc/NotFound.vue";
+import axios from "axios";
 
 const routes = [
     {
@@ -39,17 +40,23 @@ const router = createRouter({
     routes
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async(to, from, next) => {
     const publicPages = ['/', '/signUp', '/login']; // 로그인 없이 접근 가능한 페이지
     const authRequired = !publicPages.includes(to.path);
-    const token = localStorage.getItem('token'); // JWT 저장된 위치에 따라 다를 수 있음
 
-    if (authRequired && !token) {
-        alert('로그인이 필요합니다.');
-        return next('/');
+    if (!authRequired) {
+        return next();
     }
 
-    next(); // 통과
+    try{
+        await axios.get('http://localhost:8081/common/check',{
+            withCredentials : true
+        })
+        next();
+    }catch(e){
+        alert('로그인이 필요합니다.')
+        next('/')
+    }
 });
 
 export default router;

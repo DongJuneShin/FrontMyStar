@@ -57,12 +57,6 @@ export default {
         return false;
       }
 
-      if(validationPassword(loginPw.value)){
-        alert("비밀번호는 대소문자 특수기호 포함 8 ~ 15자리 이내입니다.");
-        pwInput.value?.focus();
-        return false;
-      }
-
       try{
 
         const data = {
@@ -70,11 +64,11 @@ export default {
           loginPw : loginPw.value
         }
 
-        const response = await axios.post("http://localhost:8081/sign/login",data)
+        const response = await axios.post("http://localhost:8081/sign/login",data,{
+          withCredentials : true
+        })
 
         if(response.data["successAt"] === "200"){
-          const token = response.data["token"];
-          localStorage.setItem("token", token); // ✅ 토큰 저장
           await router.push('/home')
         }else{
           alert(response.data["message"])
