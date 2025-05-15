@@ -5,6 +5,7 @@ import mainLayout from "@/layouts/MainLayout.vue";
 import Home from "@/views/Home.vue";
 import Profile from "@/views/Profile.vue";
 import NotFound from "@/components/etc/NotFound.vue";
+import Schedule from "@/views/Schedule.vue";
 import axios from "axios";
 
 const routes = [
@@ -27,10 +28,9 @@ const routes = [
         path : '/',
         component: mainLayout,
         children : [
-            {path : '', redirect : '/home'},
-            {path : 'home', name : 'Home', component : Home},
+            {path : '', redirect : '/schedule'},
+            {path : 'schedule', name : 'Schedule', component : Schedule},
             {path : 'profile', name : 'Profile', component: Profile},
-
         ]
     }
 ]

@@ -69,7 +69,7 @@ export default {
         })
 
         if(response.data["successAt"] === "200"){
-          await router.push('/home')
+          await router.push('/schedule')
         }else{
           alert(response.data["message"])
           return false
