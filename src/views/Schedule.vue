@@ -8,7 +8,7 @@
         <form @submit.prevent="">
           <div class="mb-3">
             <label class="form-label">작성자</label>
-            <input type="text" class="form-control" required />
+            <input type="text" v-model="form.writer" class="form-control" required readonly/>
           </div>
           <div class="mb-3">
             <label class="form-label">제목</label>
@@ -39,12 +39,20 @@ import interactionPlugin from '@fullcalendar/interaction'
 import koLocale from '@fullcalendar/core/locales/ko'
 import {onMounted} from "vue";
 import {getUserFromToken} from "@/utils/auth.js";
+import {useUserStore} from "@/stores/user.js";
 export default {
   components: {
     FullCalendar
   },
   data() {
     return {
+        form: {
+        writer: '', // 작성자 (닉네임)
+        title: '',
+        content: '',
+        startDate: '',
+        endDate: ''
+      },
       calendarOptions: {
         plugins: [ dayGridPlugin, interactionPlugin ],
         initialView: 'dayGridMonth',
@@ -58,12 +66,15 @@ export default {
     }
   },
   mounted() {
-    // 컴포넌트가 마운트된 후 토큰에서 사용자 정보 가져와 작성자 자동 세팅
-    const user = getUserFromToken()
-    console.log("user : ",user)
-    if (user && user.name) {
-      this.form.writer = user.name  // 토큰 payload에 작성자 이름 필드명에 맞게 바꾸세요
-    }
+    const userStore = useUserStore()
+
+    userStore.fetchUser().then(() => {
+      if (userStore.user?.nickname) {
+        this.form.writer = userStore.user.nickname
+      }
+    }).catch(e => {
+      console.error('사용자 정보 로딩 실패:', e)
+    })
   },
   methods: {
     handleDateClick: function(arg) {

@@ -7,10 +7,14 @@
 <script>
 
 import Login from "@/components/login/Login.vue";
+import {getUserFromToken} from "@/utils/auth.js";
+import {useUserStore} from "@/stores/user.js";
 export default {
   components: {Login},
-  setup() {
-    return {}
+
+  mounted() {
+    const userStore = useUserStore()
+    userStore.fetchUser()  // ✅ 이 한 줄로 백엔드에서 사용자 정보 가져옴
   }
 }
 </script>
