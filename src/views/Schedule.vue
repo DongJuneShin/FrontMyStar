@@ -27,6 +27,9 @@
           <input type="date" v-model="form.endDate" class="form-control" required />
         </div>
         <button type="submit" class="btn btn-primary w-100">저장하기</button>
+        <button v-if="selectedEventId" type="button" class="btn btn-danger w-100 mt-2" @click="deleteSchedule">
+          삭제하기
+        </button>
       </form>
     </div>
   </div>
@@ -51,6 +54,7 @@ export default {
         startDate: '',
         endDate: ''
       },
+      selectedEventId : null,
       calendarEvents: [], // 전체 이벤트 배열 관리
       calendarOptions: {
         plugins: [dayGridPlugin, interactionPlugin],
@@ -58,7 +62,8 @@ export default {
         locale: koLocale,
         dateClick: this.handleDateClick,
         datesSet: this.onDateSet,
-        events: []
+        events: [],
+        eventClick: this.handleEventClick
       },
       currentYearMonth: ''
     }
@@ -83,9 +88,6 @@ export default {
       this.currentYearMonth = `${year}-${month.toString().padStart(2, '0')}`
       this.selectSchduleList()
     },
-    handleDateClick(arg) {
-      alert('date click! ' + arg.dateStr)
-    },
     async selectSchduleList() {
       try {
         const response = await api.get('/schedule/selectScheduleList', {
@@ -93,6 +95,7 @@ export default {
         })
 
         const schedules = response.data.data
+
         const events = schedules.map(item => ({
           id: item.no,
           title: item.title,
@@ -103,7 +106,6 @@ export default {
             content: item.content
           }
         }))
-
         this.calendarEvents = events
 
         const calendarApi = this.$refs.calendar.getApi()
@@ -171,6 +173,49 @@ export default {
       } catch (error) {
         alert('통신 오류 관리자에게 문의 바랍니다.')
       }
+    },
+    handleEventClick(info){
+      const event = info.event
+      console.log("event : ",event)
+      const {title, start, end, extendedProps, id} = event
+      this.form.title = title
+      this.form.content = extendedProps.content
+      this.form.startDate = start.toISOString().slice(0, 10) // yyyy-MM-dd
+      this.form.endDate = end ? end.toISOString().slice(0, 10) : this.form.startDate
+      this.form.writer = extendedProps.writer
+
+      this.selectedEventId = id // ✅ 선택된 이벤트 ID 저장
+    },
+    async deleteSchedule(){
+      if(!this.selectedEventId) return
+
+      const confirmed = confirm("정말 삭제하시겠습니까?")
+      if(!confirmed) return
+
+      try{
+        const response = await api.post("/schedule/deleteSchedule", {
+          no : this.selectedEventId
+        })
+
+        if (response.data.successAt !== '200') {
+          alert("삭제에 실패하였습니다.")
+          return false
+        }else{
+          // ✅ 삭제 후 일정 목록 다시 조회
+          await this.selectSchduleList()
+
+          // ✅ 상태 및 폼 초기화
+          this.selectedEventId = null
+          this.form.title = ''
+          this.form.content = ''
+          this.form.startDate = ''
+          this.form.endDate = ''
+          this.form.writer = ''
+        }
+
+      }catch(e){
+        alert("삭제 중 오류가 발생하였습니다.")
+      }
     }
   }
 }
@@ -179,5 +224,15 @@ export default {
 <style>
 a {
   color: black;
+}
+/* 추가된 부분 */
+.fc-day-sun a {
+  color: red;
+  font-weight: bold;
+}
+
+.fc-day-sat a {
+  color: blue;
+  font-weight: bold;
 }
 </style>
