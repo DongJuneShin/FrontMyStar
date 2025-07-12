@@ -65,73 +65,76 @@ export default {
         events: [],
         eventClick: this.handleEventClick
       },
-      currentYearMonth: ''
+      currentYearMonth: '',
+      viewStartDate: '',
+      viewEndDate: ''
     }
   },
   mounted() {
     const userStore = useUserStore()
-    userStore.fetchUser().then(() => {
-      if (userStore.user?.nickname) {
-        this.form.writer = userStore.user.nickname
-      }
-    }).catch(e => {
-      console.error('사용자 정보 로딩 실패:', e)
-    })
-
-    this.selectSchduleList()
+    if (!userStore.user) {
+      userStore.fetchUser().then(() => {
+        if (userStore.user?.nickname) {
+          this.form.writer = userStore.user.nickname
+        }
+      }).catch(e => {
+        console.error('사용자 정보 로딩 실패:', e)
+      })
+    }
   },
   methods: {
     onDateSet(info) {
-      const currentDate = info.start
-      const year = currentDate.getFullYear()
-      const month = currentDate.getMonth() + 1
-      this.currentYearMonth = `${year}-${month.toString().padStart(2, '0')}`
-      this.selectSchduleList()
-    },
-    async selectSchduleList() {
-      try {
-        const response = await api.get('/schedule/selectScheduleList', {
-          params: { yearMonth: this.currentYearMonth }
-        })
+      const startDate = info.startStr.slice(0, 10)
+      const endDate = info.endStr.slice(0, 10)
+      this.viewStartDate = startDate
+      this.viewEndDate = endDate
 
+      this.getSchedule(startDate, endDate)
+    },
+    async getSchedule(startDate, endDate){
+      try{
+        const response = await api.post('/schedule/selectScheduleList', {
+          startDate,
+          endDate
+        })
         const schedules = response.data.data
 
-        const events = schedules.map(item => ({
-          id: item.no,
-          title: item.title,
-          start: item.startDate,
-          end: item.endDate || item.startDate,
-          extendedProps: {
-            writer: item.writer,
-            content: item.content
+        //일정 매핑
+        const events = schedules.map(item => {
+          const endDate = new Date(item.endDate)
+          endDate.setDate(endDate.getDate() + 1) // 하루 더하기
+          return {
+            id: item.no,
+            title: item.title,
+            start: item.startDate,
+            end: endDate.toISOString().slice(0, 10), // yyyy-MM-dd 형식
+            extendedProps: {
+              writer: item.writer,
+              content: item.content,
+              nickname: item.nickname
+            }
           }
-        }))
+        })
+
         this.calendarEvents = events
 
         const calendarApi = this.$refs.calendar.getApi()
         calendarApi.removeAllEvents()
         this.calendarEvents.forEach(event => calendarApi.addEvent(event))
-      } catch (e) {
-        alert('스케쥴리스트 가져오기 중 에러발생 : ' + e)
+      }catch(e){
+        alert("스케줄 에러 ")
       }
+
     },
     async addSchedule() {
-      // 필수 입력 체크
-      if (!this.form.title) {
-        alert('제목은 필수값 입니다.')
-        return
-      }
-      if (!this.form.startDate) {
-        alert('시작일은 필수값 입니다.')
-        return
-      }
-      if (!this.form.endDate) {
-        alert('종료일은 필수값 입니다.')
+      if (!this.form.title || !this.form.startDate || !this.form.endDate) {
+        alert('제목, 시작일, 종료일은 필수값입니다.')
         return
       }
 
       const userStore = useUserStore()
       const payload = {
+        no: this.selectedEventId,
         writer: userStore.user.username,
         title: this.form.title,
         content: this.form.content,
@@ -143,30 +146,42 @@ export default {
         const response = await api.post('/schedule/insertSchdule', payload)
 
         if (response.data.successAt === '200') {
-          const newEvent = {
-            id: response.data.newScheduleId || Date.now(), // 서버에서 새 일정 ID를 줘야 함
-            title: this.form.title,
-            start: this.form.startDate,
-            end: this.form.endDate,
-            extendedProps: {
-              content: this.form.content,
-              writer: payload.writer
+          const calendarApi = this.$refs.calendar.getApi()
+
+          if (this.selectedEventId === null) {
+            // ➕ 신규 등록
+            const newId = response.data.newScheduleId
+            const newEvent = {
+              id: newId,
+              title: this.form.title,
+              start: this.form.startDate,
+              end: new Date(new Date(this.form.endDate).setDate(new Date(this.form.endDate).getDate() + 1))
+                  .toISOString().slice(0, 10),
+              extendedProps: {
+                content: this.form.content,
+                writer: payload.writer
+              }
+            }
+            this.calendarEvents.push(newEvent)
+            calendarApi.addEvent(newEvent)
+          } else {
+            // 🔁 수정 처리
+            const existingEvent = calendarApi.getEventById(this.selectedEventId)
+            if (existingEvent) {
+              existingEvent.setProp('title', this.form.title)
+              existingEvent.setStart(this.form.startDate)
+              existingEvent.setEnd(this.form.endDate)
+              existingEvent.setExtendedProp('content', this.form.content)
+              existingEvent.setExtendedProp('writer', payload.writer)
             }
           }
-
-          // 기존 이벤트 배열에 추가
-          this.calendarEvents.push(newEvent)
-
-          // FullCalendar 이벤트 갱신
-          const calendarApi = this.$refs.calendar.getApi()
-          calendarApi.removeAllEvents()
-          this.calendarEvents.forEach(event => calendarApi.addEvent(event))
 
           // 폼 초기화
           this.form.title = ''
           this.form.content = ''
           this.form.startDate = ''
           this.form.endDate = ''
+          this.selectedEventId = null
         } else {
           alert('일정 등록에 실패했습니다.')
         }
@@ -174,15 +189,23 @@ export default {
         alert('통신 오류 관리자에게 문의 바랍니다.')
       }
     },
+    handleDateClick(info){
+      const userStore = useUserStore()
+      this.form.title = ''
+      this.form.content = ''
+      this.form.startDate = ''
+      this.form.endDate = ''
+      this.form.writer = userStore.user?.nickname
+      this.selectedEventId = null
+    },
     handleEventClick(info){
       const event = info.event
-      console.log("event : ",event)
       const {title, start, end, extendedProps, id} = event
       this.form.title = title
       this.form.content = extendedProps.content
-      this.form.startDate = start.toISOString().slice(0, 10) // yyyy-MM-dd
+      this.form.startDate = event.startStr
       this.form.endDate = end ? end.toISOString().slice(0, 10) : this.form.startDate
-      this.form.writer = extendedProps.writer
+      this.form.writer = extendedProps.nickname
 
       this.selectedEventId = id // ✅ 선택된 이벤트 ID 저장
     },
@@ -202,15 +225,17 @@ export default {
           return false
         }else{
           // ✅ 삭제 후 일정 목록 다시 조회
-          await this.selectSchduleList()
-
+          await this.getSchedule(this.viewStartDate, this.viewEndDate)
           // ✅ 상태 및 폼 초기화
           this.selectedEventId = null
           this.form.title = ''
           this.form.content = ''
           this.form.startDate = ''
           this.form.endDate = ''
-          this.form.writer = ''
+          const userStore = useUserStore()
+          if (userStore.user?.nickname) {
+            this.form.writer = userStore.user.nickname
+          }
         }
 
       }catch(e){
